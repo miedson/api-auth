@@ -29,8 +29,10 @@ export class GetMe {
     const membership = user.memberships.find(
       (item) => item.applicationId === application.id,
     )
+    const applicationRole =
+      membership?.role ?? (user.role === 'root' ? 'admin' : null)
 
-    if (!membership) {
+    if (!applicationRole) {
       throw new Error('Unauthorized')
     }
 
@@ -45,7 +47,7 @@ export class GetMe {
         id: application.publicId,
         name: application.name,
         slug: application.slug,
-        role: membership.role,
+        role: applicationRole,
       },
     }
   }

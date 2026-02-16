@@ -36,18 +36,12 @@ const userRepository = new UserRepository(prisma)
 const applicationRepository = new ApplicationRepository(prisma)
 const authClientRepository = new AuthClientRepository(prisma)
 const hasher = new BcryptPasswordHasher()
-const platformAdminApplicationSlug =
-  process.env.AUTH_ADMIN_APPLICATION_SLUG ?? 'api-auth'
 
-const ensurePlatformAdmin = (
+const ensureRootUser = (
   reply: FastifyReply,
   role: string,
-  applicationSlug: string,
 ) => {
-  if (
-    role !== 'admin' ||
-    applicationSlug.toLowerCase() !== platformAdminApplicationSlug.toLowerCase()
-  ) {
+  if (role !== 'root') {
     reply.status(403).send({ message: 'Forbidden' })
     return false
   }
@@ -103,11 +97,7 @@ export async function adminRoutes(app: FastifyTypeInstance) {
     async (request, reply) => {
       try {
         if (
-          !ensurePlatformAdmin(
-            reply,
-            request.user.role,
-            request.user.applicationSlug,
-          )
+          !ensureRootUser(reply, request.user.role)
         ) {
           return
         }
@@ -143,11 +133,7 @@ export async function adminRoutes(app: FastifyTypeInstance) {
     async (request, reply) => {
       try {
         if (
-          !ensurePlatformAdmin(
-            reply,
-            request.user.role,
-            request.user.applicationSlug,
-          )
+          !ensureRootUser(reply, request.user.role)
         ) {
           return
         }
@@ -178,11 +164,7 @@ export async function adminRoutes(app: FastifyTypeInstance) {
     async (request, reply) => {
       try {
         if (
-          !ensurePlatformAdmin(
-            reply,
-            request.user.role,
-            request.user.applicationSlug,
-          )
+          !ensureRootUser(reply, request.user.role)
         ) {
           return
         }
@@ -220,11 +202,7 @@ export async function adminRoutes(app: FastifyTypeInstance) {
     async (request, reply) => {
       try {
         if (
-          !ensurePlatformAdmin(
-            reply,
-            request.user.role,
-            request.user.applicationSlug,
-          )
+          !ensureRootUser(reply, request.user.role)
         ) {
           return
         }

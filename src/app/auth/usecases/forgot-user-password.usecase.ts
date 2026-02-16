@@ -34,7 +34,7 @@ export class ForgotUserPassword {
       (item) => item.applicationId === application.id,
     )
 
-    if (!membership) {
+    if (!membership && !user.role) {
       return
     }
 

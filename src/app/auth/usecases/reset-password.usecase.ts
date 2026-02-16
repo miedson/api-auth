@@ -38,7 +38,7 @@ export class ResetPassword {
       application.id,
     )
 
-    if (!membership) {
+    if (!membership && resetToken.user.role !== 'root') {
       throw new Error('User has no access to this application')
     }
 

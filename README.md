@@ -36,17 +36,13 @@ Nos endpoints com escopo de aplicacao (`login`, `refresh-token`, `forgot-passwor
 
 As rotas em `/api/v1/admin/*` exigem:
 
-- Usuario autenticado com role `admin`
-- Token emitido na aplicacao de administracao da propria API Auth
-
-Por padrao, a aplicacao de administracao esperada e `api-auth`.
-Para alterar, configure `AUTH_ADMIN_APPLICATION_SLUG`.
+- Usuario autenticado com role global `root`
 
 ## Regras de cadastro de usuario
 
 - `register` e `verify-email` nao dependem de aplicacao previamente cadastrada
 - No `register`, o papel global do usuario na API Auth e obrigatorio:
-  - `admin`: administrador da API Auth
+  - `root`: administrador global da API Auth (sem limitacao por vinculo de aplicacao)
   - `application`: usuario de aplicacoes
 - O vinculo usuario-aplicacao e feito depois via rota administrativa:
   - `POST /api/v1/admin/applications/:applicationSlug/users/:userPublicId`
@@ -145,6 +141,7 @@ O seed cria:
 - `application` (sistema que usara login)
 - `auth_client` (cliente autorizado a chamar a API)
 - vinculo de acesso entre cliente e aplicacao
+- `user` root inicial da API Auth
 
 Use as variaveis `SEED_*` do `.env.example`.
 O seed deve ser usado como bootstrap inicial; depois disso, prefira onboarding via rotas admin.
