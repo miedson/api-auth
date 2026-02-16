@@ -10,7 +10,9 @@ export class EnsureClientApplicationAccess {
     clientSecret: string
     application?: Application
   }): Promise<void> {
-    const client = await this.authClientRepository.findByClientId(input.clientId)
+    const client = await this.authClientRepository.findByClientId(
+      input.clientId,
+    )
 
     if (!client || client.status !== 'active') {
       throw new Error('Invalid client credentials')
@@ -25,12 +27,8 @@ export class EnsureClientApplicationAccess {
       throw new Error('Invalid client credentials')
     }
 
-    if (!input.application) {
-      return
-    }
-
     const hasAccess = client.applications.some(
-      (item) => item.applicationId === input.application.id,
+      (item) => item.applicationId === input.application?.id,
     )
 
     if (!hasAccess) {
