@@ -1,18 +1,16 @@
 import { randomInt } from 'node:crypto'
-import type { MembershipRole } from '@prisma/client'
+import type { UserRole } from '@prisma/client'
 import type { EmailVerificationCodeRepository } from '@/app/auth/repositories/email-verification-code.repository'
 import type { RegisterResponseDto } from '@/app/auth/schemas/register-response.schema'
 import type { PasswordHasher } from '@/app/common/interfaces/password-hasher'
 import type { TokenHasher } from '@/app/common/interfaces/token-hasher'
 import type { MailSender } from '@/app/common/interfaces/email-sender'
-import type { ApplicationRepository } from '@/app/application/repositories/application.repository'
 import type { UserRepository } from '@/app/users/repositories/user.repository'
 import type { RegisterDto } from '@/app/auth/schemas/register.schema'
 
 export class RegisterUser {
   constructor(
     private readonly userRepository: UserRepository,
-    private readonly applicationRepository: ApplicationRepository,
     private readonly passwordHasher: PasswordHasher,
     private readonly tokenHasher: TokenHasher,
     private readonly mailSender: MailSender,
@@ -23,16 +21,12 @@ export class RegisterUser {
     userId: number
     userName: string
     userEmail: string
-    applicationId: number
-    role: MembershipRole
   }): Promise<void> {
     const code = String(randomInt(0, 1_000_000)).padStart(6, '0')
     const codeHash = this.tokenHasher.hash(code)
 
     await this.emailVerificationCodeRepository.create({
       userId: input.userId,
-      applicationId: input.applicationId,
-      role: input.role,
       codeHash,
     })
 
@@ -45,16 +39,8 @@ export class RegisterUser {
   }
 
   async execute(input: RegisterDto): Promise<RegisterResponseDto> {
-    const application = await this.applicationRepository.findBySlug(
-      input.applicationSlug,
-    )
-
-    if (!application || application.status !== 'active') {
-      throw new Error('Application unavailable')
-    }
-
     const existingUser = await this.userRepository.findByEmail(input.email)
-    const role: MembershipRole = input.role ?? 'user'
+    const role: UserRole = input.role
 
     if (!existingUser) {
       const passwordHash = await this.passwordHasher.hash(input.password)
@@ -62,6 +48,7 @@ export class RegisterUser {
         name: input.name,
         displayName: input.displayName,
         email: input.email,
+        role,
         passwordHash,
         status: 'pending',
         emailVerifiedAt: null,
@@ -71,8 +58,6 @@ export class RegisterUser {
         userId: created.id,
         userName: created.name,
         userEmail: created.email,
-        applicationId: application.id,
-        role,
       })
 
       return {
@@ -99,6 +84,7 @@ export class RegisterUser {
       await this.userRepository.updatePendingCredentials(existingUser.id, {
         name: input.name,
         displayName: input.displayName,
+        role,
         passwordHash,
       })
 
@@ -106,8 +92,6 @@ export class RegisterUser {
         userId: existingUser.id,
         userName: input.name,
         userEmail: existingUser.email,
-        applicationId: application.id,
-        role,
       })
 
       return {
@@ -115,8 +99,6 @@ export class RegisterUser {
         message: 'Verification code sent to email',
       }
     }
-
-    await this.userRepository.attachToApplication(existingUser.id, application.id, role)
 
     return {
       status: 'created',

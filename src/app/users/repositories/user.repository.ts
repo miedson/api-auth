@@ -4,6 +4,7 @@ import type {
   Prisma,
   PrismaClient,
   User,
+  UserRole,
   UserStatus,
 } from '@prisma/client'
 
@@ -24,6 +25,7 @@ export class UserRepository extends Repository<
     name: string
     displayName?: string | null
     email: string
+    role: UserRole
     passwordHash: string
     status?: UserStatus
     emailVerifiedAt?: Date | null
@@ -36,6 +38,7 @@ export class UserRepository extends Repository<
     data: {
       name: string
       displayName?: string | null
+      role: UserRole
       passwordHash: string
     },
   ): Promise<void> {
@@ -44,6 +47,7 @@ export class UserRepository extends Repository<
       data: {
         name: data.name,
         displayName: data.displayName,
+        role: data.role,
         passwordHash: data.passwordHash,
       },
     })

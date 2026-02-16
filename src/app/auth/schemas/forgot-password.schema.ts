@@ -3,7 +3,9 @@ import { applicationSlugSchema } from '@/app/application/schemas/application.sch
 
 export const forgotPasswordSchema = z.object({
   email: z.email({ message: 'E-mail obrigatorio' }),
-  applicationSlug: applicationSlugSchema,
 })
 
-export type ForgotPasswordDto = z.infer<typeof forgotPasswordSchema>
+export type ForgotPasswordBodyDto = z.infer<typeof forgotPasswordSchema>
+export type ForgotPasswordDto = ForgotPasswordBodyDto & {
+  applicationSlug: z.infer<typeof applicationSlugSchema>
+}

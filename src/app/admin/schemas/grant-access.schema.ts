@@ -5,11 +5,7 @@ export const grantClientAccessParamsSchema = z.object({
   applicationSlug: z.string().min(2),
 })
 
-export const grantUserAccessParamsSchema = z.object({
-  userPublicId: z.string().uuid(),
+export const bindUserToApplicationParamsSchema = z.object({
   applicationSlug: z.string().min(2),
-})
-
-export const grantUserAccessBodySchema = z.object({
-  role: z.enum(['user', 'admin']).default('user').optional(),
+  userPublicId: z.string().uuid(),
 })

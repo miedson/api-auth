@@ -37,5 +37,5 @@ export type UserPayload = {
   email: string
   name: string
   applicationSlug: string
-  role: 'user' | 'admin'
+  role: 'application' | 'admin'
 }

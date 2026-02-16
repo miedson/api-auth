@@ -5,7 +5,10 @@ import { PasswordResetTokenRepository } from '@/app/auth/repositorories/password
 import { RefreshTokenRepository } from '@/app/auth/repositories/refresh-token.repository'
 import { authRequestSchema } from '@/app/auth/schemas/auth-request.schema'
 import { authResponseSchema } from '@/app/auth/schemas/auth-response.schema'
-import { clientAuthHeadersSchema } from '@/app/auth/schemas/client-auth.schema'
+import {
+  clientApplicationHeadersSchema,
+  clientAuthHeadersSchema,
+} from '@/app/auth/schemas/client-auth.schema'
 import { forgotPasswordSchema } from '@/app/auth/schemas/forgot-password.schema'
 import { logoutSchema } from '@/app/auth/schemas/logout.schema'
 import { meResponseSchema } from '@/app/auth/schemas/me-response.schema'
@@ -110,10 +113,11 @@ const sendMappedError = (reply: FastifyReply, error: unknown) => {
 
 const ensureClientAccessByApplicationSlug = async (
   headers: unknown,
-  applicationSlug: string,
 ) => {
-  const parsedHeaders = clientAuthHeadersSchema.parse(headers)
-  const application = await applicationRepository.findBySlug(applicationSlug)
+  const parsedHeaders = clientApplicationHeadersSchema.parse(headers)
+  const application = await applicationRepository.findBySlug(
+    parsedHeaders['x-application-slug'],
+  )
 
   if (!application || application.status !== 'active') {
     throw new Error('Application unavailable')
@@ -124,6 +128,17 @@ const ensureClientAccessByApplicationSlug = async (
     clientSecret: parsedHeaders['x-client-secret'],
     application,
   })
+
+  return application.slug
+}
+
+const ensureClientCredentials = async (headers: unknown) => {
+  const parsedHeaders = clientAuthHeadersSchema.parse(headers)
+
+  await ensureClientApplicationAccess.execute({
+    clientId: parsedHeaders['x-client-id'],
+    clientSecret: parsedHeaders['x-client-secret'],
+  })
 }
 
 export async function authRoutes(app: FastifyTypeInstance) {
@@ -133,7 +148,7 @@ export async function authRoutes(app: FastifyTypeInstance) {
       config: { public: true },
       schema: {
         tags: ['auth'],
-        summary: 'Criar conta ou vincular usuario a uma aplicacao',
+        summary: 'Criar conta de usuario na API Auth',
         headers: clientAuthHeadersSchema,
         body: registerSchema,
         response: {
@@ -145,16 +160,12 @@ export async function authRoutes(app: FastifyTypeInstance) {
     },
     async (request, reply) => {
       try {
-        await ensureClientAccessByApplicationSlug(
-          request.headers,
-          request.body.applicationSlug,
-        )
+        await ensureClientCredentials(request.headers)
 
         const result = await prisma.$transaction(
           async (transaction: TransactionClient) => {
             const registerUser = new RegisterUser(
               new UserRepository(transaction),
-              new ApplicationRepository(transaction),
               hasher,
               tokenHasher,
               mailSender,
@@ -194,14 +205,10 @@ export async function authRoutes(app: FastifyTypeInstance) {
     },
     async (request, reply) => {
       try {
-        await ensureClientAccessByApplicationSlug(
-          request.headers,
-          request.body.applicationSlug,
-        )
+        await ensureClientCredentials(request.headers)
 
         await prisma.$transaction(async (transaction: TransactionClient) => {
           const verifyEmail = new VerifyEmail(
-            new ApplicationRepository(transaction),
             new UserRepository(transaction),
             new EmailVerificationCodeRepository(transaction),
             tokenHasher,
@@ -224,7 +231,7 @@ export async function authRoutes(app: FastifyTypeInstance) {
       schema: {
         tags: ['auth'],
         summary: 'Autenticar usuario',
-        headers: clientAuthHeadersSchema,
+        headers: clientApplicationHeadersSchema,
         body: authRequestSchema,
         response: {
           201: authResponseSchema,
@@ -234,9 +241,8 @@ export async function authRoutes(app: FastifyTypeInstance) {
     },
     async (request, reply) => {
       try {
-        await ensureClientAccessByApplicationSlug(
+        const applicationSlug = await ensureClientAccessByApplicationSlug(
           request.headers,
-          request.body.applicationSlug,
         )
 
         const loginUser = new LoginUser(
@@ -248,7 +254,10 @@ export async function authRoutes(app: FastifyTypeInstance) {
           request.jwt,
         )
 
-        const result = await loginUser.execute(request.body)
+        const result = await loginUser.execute({
+          ...request.body,
+          applicationSlug,
+        })
 
         reply
           .setCookie('access_token', result.access_token, {
@@ -278,7 +287,7 @@ export async function authRoutes(app: FastifyTypeInstance) {
       schema: {
         tags: ['auth'],
         summary: 'Renovar sessao',
-        headers: clientAuthHeadersSchema,
+        headers: clientApplicationHeadersSchema,
         body: refreshTokenSchema,
         response: {
           201: authResponseSchema,
@@ -288,9 +297,8 @@ export async function authRoutes(app: FastifyTypeInstance) {
     },
     async (request, reply) => {
       try {
-        await ensureClientAccessByApplicationSlug(
+        const applicationSlug = await ensureClientAccessByApplicationSlug(
           request.headers,
-          request.body.applicationSlug,
         )
 
         const refreshSession = new RefreshSession(
@@ -301,7 +309,10 @@ export async function authRoutes(app: FastifyTypeInstance) {
           request.jwt,
         )
 
-        const result = await refreshSession.execute(request.body)
+        const result = await refreshSession.execute({
+          ...request.body,
+          applicationSlug,
+        })
 
         reply
           .setCookie('access_token', result.access_token, {
@@ -331,7 +342,7 @@ export async function authRoutes(app: FastifyTypeInstance) {
       schema: {
         tags: ['auth'],
         summary: 'Solicitar recuperacao de senha',
-        headers: clientAuthHeadersSchema,
+        headers: clientApplicationHeadersSchema,
         body: forgotPasswordSchema,
         response: {
           204: z.undefined(),
@@ -341,9 +352,8 @@ export async function authRoutes(app: FastifyTypeInstance) {
     },
     async (request, reply) => {
       try {
-        await ensureClientAccessByApplicationSlug(
+        const applicationSlug = await ensureClientAccessByApplicationSlug(
           request.headers,
-          request.body.applicationSlug,
         )
 
         const forgotUserPassword = new ForgotUserPassword(
@@ -354,7 +364,7 @@ export async function authRoutes(app: FastifyTypeInstance) {
           passwordResetTokenRepository,
         )
 
-        await forgotUserPassword.execute(request.body)
+        await forgotUserPassword.execute({ ...request.body, applicationSlug })
         reply.code(204).send()
       } catch (error) {
         return sendMappedError(reply, error)
@@ -369,7 +379,7 @@ export async function authRoutes(app: FastifyTypeInstance) {
       schema: {
         tags: ['auth'],
         summary: 'Redefinir senha',
-        headers: clientAuthHeadersSchema,
+        headers: clientApplicationHeadersSchema,
         body: resetPasswordSchema,
         response: {
           201: z.undefined(),
@@ -379,9 +389,8 @@ export async function authRoutes(app: FastifyTypeInstance) {
     },
     async (request, reply) => {
       try {
-        await ensureClientAccessByApplicationSlug(
+        const applicationSlug = await ensureClientAccessByApplicationSlug(
           request.headers,
-          request.body.applicationSlug,
         )
 
         await prisma.$transaction(async (transaction: TransactionClient) => {
@@ -393,7 +402,7 @@ export async function authRoutes(app: FastifyTypeInstance) {
             hasher,
           )
 
-          await resetPassword.execute(request.body)
+          await resetPassword.execute({ ...request.body, applicationSlug })
         })
 
         reply.code(201).send()
@@ -410,7 +419,7 @@ export async function authRoutes(app: FastifyTypeInstance) {
       schema: {
         tags: ['auth'],
         summary: 'Encerrar sessao',
-        headers: clientAuthHeadersSchema,
+        headers: clientApplicationHeadersSchema,
         body: logoutSchema,
         response: {
           204: z.undefined(),
@@ -420,9 +429,8 @@ export async function authRoutes(app: FastifyTypeInstance) {
     },
     async (request, reply) => {
       try {
-        await ensureClientAccessByApplicationSlug(
+        const applicationSlug = await ensureClientAccessByApplicationSlug(
           request.headers,
-          request.body.applicationSlug,
         )
 
         const logoutUser = new LogoutUser(
@@ -432,7 +440,7 @@ export async function authRoutes(app: FastifyTypeInstance) {
         )
         await logoutUser.execute({
           refreshToken: request.body.refresh_token,
-          applicationSlug: request.body.applicationSlug,
+          applicationSlug,
         })
 
         reply

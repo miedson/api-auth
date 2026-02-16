@@ -4,7 +4,9 @@ import { applicationSlugSchema } from '@/app/application/schemas/application.sch
 export const authRequestSchema = z.object({
   email: z.email(),
   password: z.string().min(1),
-  applicationSlug: applicationSlugSchema,
 })
 
-export type AuthRequestDto = z.infer<typeof authRequestSchema>
+export type AuthRequestBodyDto = z.infer<typeof authRequestSchema>
+export type AuthRequestDto = AuthRequestBodyDto & {
+  applicationSlug: z.infer<typeof applicationSlugSchema>
+}

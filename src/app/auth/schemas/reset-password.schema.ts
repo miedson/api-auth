@@ -5,7 +5,9 @@ import { passwordSchema } from '@/app/users/schemas/user.schema'
 export const resetPasswordSchema = z.object({
   token: z.string().min(10),
   password: passwordSchema,
-  applicationSlug: applicationSlugSchema,
 })
 
-export type ResetPasswordDto = z.infer<typeof resetPasswordSchema>
+export type ResetPasswordBodyDto = z.infer<typeof resetPasswordSchema>
+export type ResetPasswordDto = ResetPasswordBodyDto & {
+  applicationSlug: z.infer<typeof applicationSlugSchema>
+}

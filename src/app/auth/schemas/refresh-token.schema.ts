@@ -3,7 +3,9 @@ import { applicationSlugSchema } from '@/app/application/schemas/application.sch
 
 export const refreshTokenSchema = z.object({
   refresh_token: z.string().min(20),
-  applicationSlug: applicationSlugSchema,
 })
 
-export type RefreshTokenDto = z.infer<typeof refreshTokenSchema>
+export type RefreshTokenBodyDto = z.infer<typeof refreshTokenSchema>
+export type RefreshTokenDto = RefreshTokenBodyDto & {
+  applicationSlug: z.infer<typeof applicationSlugSchema>
+}

@@ -3,7 +3,9 @@ import { applicationSlugSchema } from '@/app/application/schemas/application.sch
 
 export const logoutSchema = z.object({
   refresh_token: z.string().min(20),
-  applicationSlug: applicationSlugSchema,
 })
 
-export type LogoutDto = z.infer<typeof logoutSchema>
+export type LogoutBodyDto = z.infer<typeof logoutSchema>
+export type LogoutDto = LogoutBodyDto & {
+  applicationSlug: z.infer<typeof applicationSlugSchema>
+}

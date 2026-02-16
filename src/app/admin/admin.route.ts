@@ -1,4 +1,3 @@
-import type { MembershipRole } from '@prisma/client'
 import { BcryptPasswordHasher } from '@/app/auth/adapters/bcrypt-password-hasher.adapter'
 import { errorSchema } from '@/app/common/schemas/error.schema'
 import { prisma } from '@/lib/prisma'
@@ -11,9 +10,8 @@ import {
   createAuthClientSchema,
 } from './schemas/create-auth-client.schema'
 import {
+  bindUserToApplicationParamsSchema,
   grantClientAccessParamsSchema,
-  grantUserAccessBodySchema,
-  grantUserAccessParamsSchema,
 } from './schemas/grant-access.schema'
 import { CreateApplication } from './usecases/create-application.usecase'
 import { CreateAuthClient } from './usecases/create-auth-client.usecase'
@@ -38,9 +36,18 @@ const userRepository = new UserRepository(prisma)
 const applicationRepository = new ApplicationRepository(prisma)
 const authClientRepository = new AuthClientRepository(prisma)
 const hasher = new BcryptPasswordHasher()
+const platformAdminApplicationSlug =
+  process.env.AUTH_ADMIN_APPLICATION_SLUG ?? 'api-auth'
 
-const ensureAdminRole = (reply: FastifyReply, role: string) => {
-  if (role !== 'admin') {
+const ensurePlatformAdmin = (
+  reply: FastifyReply,
+  role: string,
+  applicationSlug: string,
+) => {
+  if (
+    role !== 'admin' ||
+    applicationSlug.toLowerCase() !== platformAdminApplicationSlug.toLowerCase()
+  ) {
     reply.status(403).send({ message: 'Forbidden' })
     return false
   }
@@ -95,7 +102,15 @@ export async function adminRoutes(app: FastifyTypeInstance) {
     },
     async (request, reply) => {
       try {
-        if (!ensureAdminRole(reply, request.user.role)) return
+        if (
+          !ensurePlatformAdmin(
+            reply,
+            request.user.role,
+            request.user.applicationSlug,
+          )
+        ) {
+          return
+        }
 
         const createApplication = new CreateApplication(applicationRepository)
         const created = await createApplication.execute(request.body)
@@ -127,7 +142,15 @@ export async function adminRoutes(app: FastifyTypeInstance) {
     },
     async (request, reply) => {
       try {
-        if (!ensureAdminRole(reply, request.user.role)) return
+        if (
+          !ensurePlatformAdmin(
+            reply,
+            request.user.role,
+            request.user.applicationSlug,
+          )
+        ) {
+          return
+        }
 
         const createAuthClient = new CreateAuthClient(authClientRepository, hasher)
         const created = await createAuthClient.execute(request.body)
@@ -154,7 +177,15 @@ export async function adminRoutes(app: FastifyTypeInstance) {
     },
     async (request, reply) => {
       try {
-        if (!ensureAdminRole(reply, request.user.role)) return
+        if (
+          !ensurePlatformAdmin(
+            reply,
+            request.user.role,
+            request.user.applicationSlug,
+          )
+        ) {
+          return
+        }
 
         const grantClientAccess = new GrantClientApplicationAccess(
           applicationRepository,
@@ -174,13 +205,12 @@ export async function adminRoutes(app: FastifyTypeInstance) {
   )
 
   app.post(
-    '/users/:userPublicId/applications/:applicationSlug',
+    '/applications/:applicationSlug/users/:userPublicId',
     {
       schema: {
         tags: ['admin'],
-        summary: 'Vincular usuario a aplicacao',
-        params: grantUserAccessParamsSchema,
-        body: grantUserAccessBodySchema,
+        summary: 'Associar usuario a aplicacao',
+        params: bindUserToApplicationParamsSchema,
         response: {
           204: z.undefined(),
           ...adminErrorResponses,
@@ -189,7 +219,15 @@ export async function adminRoutes(app: FastifyTypeInstance) {
     },
     async (request, reply) => {
       try {
-        if (!ensureAdminRole(reply, request.user.role)) return
+        if (
+          !ensurePlatformAdmin(
+            reply,
+            request.user.role,
+            request.user.applicationSlug,
+          )
+        ) {
+          return
+        }
 
         const grantUserAccess = new GrantUserApplicationAccess(
           applicationRepository,
@@ -199,7 +237,7 @@ export async function adminRoutes(app: FastifyTypeInstance) {
         await grantUserAccess.execute({
           userPublicId: request.params.userPublicId,
           applicationSlug: request.params.applicationSlug,
-          role: (request.body.role ?? 'user') as MembershipRole,
+          role: 'user',
         })
 
         reply.code(204).send()
@@ -208,4 +246,5 @@ export async function adminRoutes(app: FastifyTypeInstance) {
       }
     },
   )
+
 }

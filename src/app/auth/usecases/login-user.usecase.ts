@@ -55,7 +55,7 @@ export class LoginUser {
         email: user.email,
         name: user.name,
         applicationSlug: application.slug,
-        role: membership.role,
+        role: user.role,
       },
       { expiresIn },
     )

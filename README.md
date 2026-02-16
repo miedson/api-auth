@@ -4,7 +4,7 @@ Servico de identidade central em Fastify para autenticacao e autorizacao por apl
 
 ## Funcionalidades
 
-- Cadastro de usuario por aplicacao (`POST /api/v1/register`)
+- Cadastro de usuario na API Auth (`POST /api/v1/register`)
 - Verificacao de e-mail por codigo (`POST /api/v1/verify-email`)
 - Login por aplicacao com JWT + refresh token (`POST /api/v1/login`)
 - Renovacao de sessao (`POST /api/v1/refresh-token`)
@@ -17,18 +17,39 @@ Servico de identidade central em Fastify para autenticacao e autorizacao por apl
   - `POST /api/v1/admin/applications`
   - `POST /api/v1/admin/clients`
   - `POST /api/v1/admin/clients/:clientId/applications/:applicationSlug`
-  - `POST /api/v1/admin/users/:userPublicId/applications/:applicationSlug`
+  - `POST /api/v1/admin/applications/:applicationSlug/users/:userPublicId`
 
 No cadastro de novo usuario, a API envia um codigo para o e-mail informado e retorna `202` com status `verification_required`.
 
 ## Contrato de cliente da API
 
-Os endpoints publicos de autenticacao exigem headers:
+Todos os endpoints publicos de autenticacao exigem headers:
 
 - `x-client-id`
 - `x-client-secret`
 
-O cliente precisa estar ativo e autorizado para a `applicationSlug` enviada no body.
+Nos endpoints com escopo de aplicacao (`login`, `refresh-token`, `forgot-password`, `reset-password`, `logout`), tambem e obrigatorio:
+
+- `x-application-slug`
+
+## Regras de administracao
+
+As rotas em `/api/v1/admin/*` exigem:
+
+- Usuario autenticado com role `admin`
+- Token emitido na aplicacao de administracao da propria API Auth
+
+Por padrao, a aplicacao de administracao esperada e `api-auth`.
+Para alterar, configure `AUTH_ADMIN_APPLICATION_SLUG`.
+
+## Regras de cadastro de usuario
+
+- `register` e `verify-email` nao dependem de aplicacao previamente cadastrada
+- No `register`, o papel global do usuario na API Auth e obrigatorio:
+  - `admin`: administrador da API Auth
+  - `application`: usuario de aplicacoes
+- O vinculo usuario-aplicacao e feito depois via rota administrativa:
+  - `POST /api/v1/admin/applications/:applicationSlug/users/:userPublicId`
 
 ## Stack
 

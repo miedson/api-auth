@@ -8,7 +8,7 @@ export class EnsureClientApplicationAccess {
   async execute(input: {
     clientId: string
     clientSecret: string
-    application: Application
+    application?: Application
   }): Promise<void> {
     const client = await this.authClientRepository.findByClientId(input.clientId)
 
@@ -23,6 +23,10 @@ export class EnsureClientApplicationAccess {
 
     if (!validSecret) {
       throw new Error('Invalid client credentials')
+    }
+
+    if (!input.application) {
+      return
     }
 
     const hasAccess = client.applications.some(
