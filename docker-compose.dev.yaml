@@ -1,0 +1,41 @@
+services:
+  api-auth:
+    container_name: api-auth-dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    env_file:
+      - .env.dev
+    environment:
+      APP_HOST: 0.0.0.0
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/api_auth
+    ports:
+      - '3001:3001'
+    command: sh -c "pnpm prisma:generate && pnpm dev"
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: api-auth-dev-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: api_auth
+    ports:
+      - '5433:5432'
+    volumes:
+      - api_auth_dev_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d api_auth']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  api_auth_dev_db:

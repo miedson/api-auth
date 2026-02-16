@@ -1,0 +1,155 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserStatus {
+  pending
+  active
+  suspended
+}
+
+enum ApplicationStatus {
+  active
+  suspended
+}
+
+enum ClientStatus {
+  active
+  revoked
+}
+
+enum MembershipRole {
+  user
+  admin
+}
+
+model User {
+  id                     Int                     @id @default(autoincrement())
+  publicId               String                  @unique @default(uuid()) @map("public_id")
+  name                   String
+  displayName            String?                 @map("display_name")
+  email                  String                  @unique
+  emailVerifiedAt        DateTime?               @map("email_verified_at")
+  passwordHash           String                  @map("password_hash")
+  status                 UserStatus              @default(active)
+  createdAt              DateTime                @default(now()) @map("created_at")
+  updatedAt              DateTime                @updatedAt @map("updated_at")
+  memberships            UserApplication[]
+  passwordResetTokens    PasswordResetToken[]
+  emailVerificationCodes EmailVerificationCode[]
+  refreshTokens          RefreshToken[]
+
+  @@map("users")
+}
+
+model Application {
+  id                     Int                       @id @default(autoincrement())
+  publicId               String                    @unique @default(uuid()) @map("public_id")
+  name                   String
+  slug                   String                    @unique
+  status                 ApplicationStatus         @default(active)
+  createdAt              DateTime                  @default(now()) @map("created_at")
+  updatedAt              DateTime                  @updatedAt @map("updated_at")
+  memberships            UserApplication[]
+  allowedClients         ClientApplicationAccess[]
+  passwordResetTokens    PasswordResetToken[]
+  emailVerificationCodes EmailVerificationCode[]
+  refreshTokens          RefreshToken[]
+
+  @@map("applications")
+}
+
+model UserApplication {
+  id            Int            @id @default(autoincrement())
+  userId        Int            @map("user_id")
+  applicationId Int            @map("application_id")
+  role          MembershipRole @default(user)
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  user          User           @relation(fields: [userId], references: [id])
+  application   Application    @relation(fields: [applicationId], references: [id])
+
+  @@unique([userId, applicationId])
+  @@index([applicationId])
+  @@map("user_applications")
+}
+
+model AuthClient {
+  id               Int                       @id @default(autoincrement())
+  publicId         String                    @unique @default(uuid()) @map("public_id")
+  name             String
+  clientId         String                    @unique @map("client_id")
+  clientSecretHash String                    @map("client_secret_hash")
+  status           ClientStatus              @default(active)
+  createdAt        DateTime                  @default(now()) @map("created_at")
+  updatedAt        DateTime                  @updatedAt @map("updated_at")
+  applications     ClientApplicationAccess[]
+
+  @@map("auth_clients")
+}
+
+model ClientApplicationAccess {
+  id            Int         @id @default(autoincrement())
+  authClientId  Int         @map("auth_client_id")
+  applicationId Int         @map("application_id")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  authClient    AuthClient  @relation(fields: [authClientId], references: [id])
+  application   Application @relation(fields: [applicationId], references: [id])
+
+  @@unique([authClientId, applicationId])
+  @@index([applicationId])
+  @@map("client_application_access")
+}
+
+model PasswordResetToken {
+  id            String      @id @default(uuid())
+  userId        Int         @map("user_id")
+  applicationId Int         @map("application_id")
+  tokenHash     String      @unique
+  expiresAt     DateTime    @map("expires_at")
+  useAt         DateTime?   @map("use_at")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  user          User        @relation(fields: [userId], references: [id])
+  application   Application @relation(fields: [applicationId], references: [id])
+
+  @@index([userId])
+  @@index([applicationId])
+  @@map("password_reset_token")
+}
+
+model RefreshToken {
+  id            String      @id @default(uuid())
+  userId        Int         @map("user_id")
+  applicationId Int         @map("application_id")
+  tokenHash     String      @unique
+  expiresAt     DateTime    @map("expires_at")
+  revokedAt     DateTime?   @map("revoked_at")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  user          User        @relation(fields: [userId], references: [id])
+  application   Application @relation(fields: [applicationId], references: [id])
+
+  @@index([userId])
+  @@index([applicationId])
+  @@map("refresh_tokens")
+}
+
+model EmailVerificationCode {
+  id            String         @id @default(uuid())
+  userId        Int            @map("user_id")
+  applicationId Int            @map("application_id")
+  role          MembershipRole @default(user)
+  codeHash      String         @unique @map("code_hash")
+  expiresAt     DateTime       @map("expires_at")
+  usedAt        DateTime?      @map("used_at")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  user          User           @relation(fields: [userId], references: [id])
+  application   Application    @relation(fields: [applicationId], references: [id])
+
+  @@index([userId])
+  @@index([applicationId])
+  @@map("email_verification_codes")
+}

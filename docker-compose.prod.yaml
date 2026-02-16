@@ -1,0 +1,53 @@
+services:
+  api-auth:
+    container_name: api-auth
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    env_file:
+      - .env.prod
+    environment:
+      NODE_ENV: production
+      APP_HOST: 0.0.0.0
+    ports:
+      - '3001:3001'
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  migrate:
+    container_name: api-auth-migrate
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrate
+    env_file:
+      - .env.prod
+    environment:
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+    profiles: ['ops']
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: api-auth-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: api_auth
+    volumes:
+      - api_auth_prod_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d api_auth']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  api_auth_prod_db:
