@@ -8,10 +8,12 @@ RUN corepack enable && corepack prepare pnpm@10.28.1 --activate
 WORKDIR /app
 
 FROM base AS deps
+ENV NODE_ENV=development
 COPY package.json pnpm-lock.yaml* ./
-RUN pnpm install --no-frozen-lockfile
+RUN pnpm install --no-frozen-lockfile --prod=false
 
 FROM deps AS builder
+ENV NODE_ENV=development
 COPY tsconfig.json prisma.config.ts biome.json ./
 COPY prisma ./prisma
 COPY src ./src
@@ -19,6 +21,7 @@ RUN pnpm prisma:generate
 RUN pnpm build
 
 FROM builder AS prod-deps
+ENV NODE_ENV=production
 RUN pnpm prune --prod
 
 FROM deps AS development
