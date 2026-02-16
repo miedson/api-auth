@@ -104,8 +104,9 @@ if (enableDocs) {
     routePrefix: '/docs',
     hooks: {
       onRequest: (request, reply, done) => {
+        request.routeOptions.config.public = true
+
         if (!isProduction) {
-          request.routeOptions.config.public = true
           done()
           return
         }

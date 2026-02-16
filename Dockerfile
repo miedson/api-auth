@@ -4,6 +4,9 @@ ARG NODE_VERSION=22.14.0
 FROM node:${NODE_VERSION}-bookworm-slim AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
+RUN apt-get update -y && \
+  apt-get install -y --no-install-recommends openssl ca-certificates && \
+  rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare pnpm@10.28.1 --activate
 WORKDIR /app
 
@@ -31,11 +34,7 @@ ENV APP_HOST=0.0.0.0
 EXPOSE 3001
 CMD ["pnpm", "dev"]
 
-FROM builder AS migrate
-ENV NODE_ENV=production
-CMD ["pnpm", "prisma:deploy"]
-
-FROM gcr.io/distroless/nodejs22-debian12:nonroot AS production
+FROM base AS production
 WORKDIR /app
 ENV NODE_ENV=production
 ENV APP_HOST=0.0.0.0
@@ -43,5 +42,10 @@ COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh && \
+  chown -R node:node /app
+USER node
 EXPOSE 3001
-CMD ["dist/server.js"]
+CMD ["./docker-entrypoint.sh"]

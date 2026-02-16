@@ -5,11 +5,30 @@ services:
       context: .
       dockerfile: Dockerfile
       target: production
-    env_file:
-      - .env.prod
     environment:
       NODE_ENV: production
       APP_HOST: 0.0.0.0
+      APP_PORT: ${APP_PORT}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL}
+      LOG_LEVEL: ${LOG_LEVEL}
+      DATABASE_URL: ${DATABASE_URL}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      COOKIE_SECRET: ${COOKIE_SECRET}
+      PASSWORD_PEPPER: ${PASSWORD_PEPPER}
+      ACCESS_TOKEN_EXPIRES_IN: ${ACCESS_TOKEN_EXPIRES_IN}
+      ACCESS_TOKEN_EXPIRES_SECONDS: ${ACCESS_TOKEN_EXPIRES_SECONDS}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER}
+      MAILERSEND_API_KEY: ${MAILERSEND_API_KEY}
+      BREVO_API_KEY: ${BREVO_API_KEY}
+      DOMAIN: ${DOMAIN}
+      ENABLE_DOCS: ${ENABLE_DOCS}
+      DOCS_BASIC_USER: ${DOCS_BASIC_USER}
+      DOCS_BASIC_PASSWORD: ${DOCS_BASIC_PASSWORD}
     ports:
       - '3001:3001'
     restart: unless-stopped
@@ -17,33 +36,21 @@ services:
       postgres:
         condition: service_healthy
 
-  migrate:
-    container_name: api-auth-migrate
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: migrate
-    env_file:
-      - .env.prod
-    environment:
-      NODE_ENV: production
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: 'no'
-    profiles: ['ops']
-
   postgres:
     image: postgres:16-alpine
     container_name: api-auth-db
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: api_auth
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - api_auth_prod_db:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d api_auth']
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB',
+        ]
       interval: 10s
       timeout: 5s
       retries: 10

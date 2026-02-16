@@ -96,23 +96,18 @@ Build e subida:
 ```bash
 docker compose -f docker-compose.prod.yaml up -d --build
 ```
-
-Rodar migracoes de producao:
-
-```bash
-docker compose -f docker-compose.prod.yaml --profile ops run --rm migrate
-```
+As migracoes rodam automaticamente na inicializacao do container da API.
 
 ## Coolify (VPS)
 
-- Dockerfile multi-stage com runtime `distroless` no target `production`
+- Dockerfile multi-stage com runtime `node:bookworm-slim` no target `production`
+- O container executa `prisma migrate deploy` automaticamente antes de iniciar a API
 - Configure no Coolify:
   - Build pack: Dockerfile
   - Docker target: `production`
   - Porta: `3001`
   - Variaveis de ambiente equivalentes ao `.env.prod`
   - `NODE_ENV` como Runtime only (nao disponivel em build-time)
-- Execute migracoes antes do deploy final usando o target `migrate` (job/one-off)
 
 ## Documentacao em producao
 
