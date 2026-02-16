@@ -13,6 +13,11 @@ Servico de identidade central em Fastify para autenticacao e autorizacao por apl
 - Identidade do usuario autenticado (`GET /api/v1/me`)
 - Controle de quais clientes podem consumir a API por `x-client-id` e `x-client-secret`
 - Controle de acesso do usuario por aplicacao
+- Onboarding administrativo por API:
+  - `POST /api/v1/admin/applications`
+  - `POST /api/v1/admin/clients`
+  - `POST /api/v1/admin/clients/:clientId/applications/:applicationSlug`
+  - `POST /api/v1/admin/users/:userPublicId/applications/:applicationSlug`
 
 No cadastro de novo usuario, a API envia um codigo para o e-mail informado e retorna `202` com status `verification_required`.
 
@@ -106,6 +111,7 @@ docker compose -f docker-compose.prod.yaml --profile ops run --rm migrate
   - Docker target: `production`
   - Porta: `3001`
   - Variaveis de ambiente equivalentes ao `.env.prod`
+  - `NODE_ENV` como Runtime only (nao disponivel em build-time)
 - Execute migracoes antes do deploy final usando o target `migrate` (job/one-off)
 
 ## Documentacao em producao
@@ -125,3 +131,4 @@ O seed cria:
 - vinculo de acesso entre cliente e aplicacao
 
 Use as variaveis `SEED_*` do `.env.example`.
+O seed deve ser usado como bootstrap inicial; depois disso, prefira onboarding via rotas admin.

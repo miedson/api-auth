@@ -11,6 +11,7 @@ import {
   validatorCompiler,
   type ZodTypeProvider,
 } from 'fastify-type-provider-zod'
+import { adminRoutes } from '@/app/admin/admin.route'
 import { authRoutes } from '@/app/auth/auth.route'
 import { validateAuthenticateDecorate } from '@/app/auth/decorates/validate-authenticate.decorate'
 import { errorHandler } from '@/app/common/error-handler'
@@ -123,6 +124,7 @@ if (enableDocs) {
 }
 
 app.register(authRoutes, { prefix: 'api/v1' })
+app.register(adminRoutes, { prefix: 'api/v1/admin' })
 
 app.setErrorHandler(errorHandler)
 
