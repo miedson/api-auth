@@ -15,6 +15,7 @@ Servico de identidade central em Fastify para autenticacao e autorizacao por apl
 - Onboarding administrativo por API:
   - `POST /api/v1/admin/applications`
   - `POST /api/v1/admin/applications/:applicationSlug/users/:userPublicId`
+  - `PATCH /api/v1/admin/applications/:applicationSlug/users/:userPublicId/role`
 
 No cadastro de novo usuario, a API envia um codigo para o e-mail informado e retorna `202` com status `verification_required`.
 
@@ -41,7 +42,7 @@ As rotas em `/api/v1/admin/*` exigem:
 - No `register`, o papel global do usuario na API Auth e obrigatorio:
   - `root`: administrador global da API Auth (sem limitacao por vinculo de aplicacao)
   - `application`: usuario de aplicacoes
-- O vinculo usuario-aplicacao e feito depois via rota administrativa:
+- O vinculo usuario-aplicacao e feito depois via rota administrativa (com role `user` por padrao, podendo informar `admin`):
   - `POST /api/v1/admin/applications/:applicationSlug/users/:userPublicId`
 
 ## Stack

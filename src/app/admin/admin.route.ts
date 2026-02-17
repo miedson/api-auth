@@ -5,7 +5,11 @@ import type { FastifyReply } from 'fastify'
 import type { FastifyTypeInstance } from '@/types'
 import { z } from 'zod'
 import { createApplicationResponseSchema, createApplicationSchema } from './schemas/create-application.schema'
-import { bindUserToApplicationParamsSchema } from './schemas/grant-access.schema'
+import {
+  bindUserToApplicationBodySchema,
+  bindUserToApplicationParamsSchema,
+  updateUserApplicationRoleBodySchema,
+} from './schemas/grant-access.schema'
 import { CreateApplication } from './usecases/create-application.usecase'
 import { GrantUserApplicationAccess } from './usecases/grant-user-application-access.usecase'
 import { ApplicationRepository } from '../application/repositories/application.repository'
@@ -117,6 +121,7 @@ export async function adminRoutes(app: FastifyTypeInstance) {
         tags: ['admin'],
         summary: 'Associar usuario a aplicacao',
         params: bindUserToApplicationParamsSchema,
+        body: bindUserToApplicationBodySchema,
         response: {
           204: z.undefined(),
           ...adminErrorResponses,
@@ -139,7 +144,47 @@ export async function adminRoutes(app: FastifyTypeInstance) {
         await grantUserAccess.execute({
           userPublicId: request.params.userPublicId,
           applicationSlug: request.params.applicationSlug,
-          role: 'user',
+          role: request.body.role ?? 'user',
+        })
+
+        reply.code(204).send()
+      } catch (error) {
+        return sendAdminError(reply, error)
+      }
+    },
+  )
+
+  app.patch(
+    '/applications/:applicationSlug/users/:userPublicId/role',
+    {
+      schema: {
+        tags: ['admin'],
+        summary: 'Atualizar role do usuario na aplicacao',
+        params: bindUserToApplicationParamsSchema,
+        body: updateUserApplicationRoleBodySchema,
+        response: {
+          204: z.undefined(),
+          ...adminErrorResponses,
+        },
+      },
+    },
+    async (request, reply) => {
+      try {
+        if (
+          !ensureRootUser(reply, request.user.role)
+        ) {
+          return
+        }
+
+        const grantUserAccess = new GrantUserApplicationAccess(
+          applicationRepository,
+          userRepository,
+        )
+
+        await grantUserAccess.execute({
+          userPublicId: request.params.userPublicId,
+          applicationSlug: request.params.applicationSlug,
+          role: request.body.role,
         })
 
         reply.code(204).send()
