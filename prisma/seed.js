@@ -1,11 +1,13 @@
-import { PrismaPg } from '@prisma/adapter-pg'
-import { PrismaClient } from '@prisma/client'
-import { Pool } from 'pg'
-import { BcryptPasswordHasher } from '../src/app/auth/adapters/bcrypt-password-hasher.adapter'
+const { PrismaPg } = require('@prisma/adapter-pg')
+const { PrismaClient } = require('@prisma/client')
+const { Pool } = require('pg')
+const {
+  BcryptPasswordHasher,
+} = require('../dist/app/auth/adapters/bcrypt-password-hasher.adapter')
 
 const connectionString = process.env.DATABASE_URL
 
-if (!connectionString?.length) {
+if (!connectionString || !connectionString.length) {
   throw new Error('DATABASE_URL is not defined')
 }
 

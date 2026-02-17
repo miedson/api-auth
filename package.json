@@ -10,7 +10,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "node prisma/seed.js",
+    "seed:ts": "tsx prisma/seed.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.11",
