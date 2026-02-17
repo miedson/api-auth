@@ -8,5 +8,5 @@ export const authRequestSchema = z.object({
 
 export type AuthRequestBodyDto = z.infer<typeof authRequestSchema>
 export type AuthRequestDto = AuthRequestBodyDto & {
-  applicationSlug: z.infer<typeof applicationSlugSchema>
+  applicationSlug?: z.infer<typeof applicationSlugSchema>
 }

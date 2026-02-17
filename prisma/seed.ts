@@ -14,74 +14,17 @@ const adapter = new PrismaPg(pool)
 const prisma = new PrismaClient({ adapter })
 
 async function main() {
-  const appSlug = process.env.SEED_APP_SLUG
-  const appName = process.env.SEED_APP_NAME
-  const clientName = process.env.SEED_CLIENT_NAME
-  const clientId = process.env.SEED_CLIENT_ID
-  const clientSecret = process.env.SEED_CLIENT_SECRET
   const rootName = process.env.SEED_ROOT_NAME
   const rootEmail = process.env.SEED_ROOT_EMAIL
   const rootPassword = process.env.SEED_ROOT_PASSWORD
 
-  if (
-    !appSlug ||
-    !appName ||
-    !clientName ||
-    !clientId ||
-    !clientSecret ||
-    !rootName ||
-    !rootEmail ||
-    !rootPassword
-  ) {
+  if (!rootName || !rootEmail || !rootPassword) {
     throw new Error(
-      'Missing envs: SEED_APP_SLUG, SEED_APP_NAME, SEED_CLIENT_NAME, SEED_CLIENT_ID, SEED_CLIENT_SECRET, SEED_ROOT_NAME, SEED_ROOT_EMAIL, SEED_ROOT_PASSWORD',
+      'Missing envs: SEED_ROOT_NAME, SEED_ROOT_EMAIL, SEED_ROOT_PASSWORD',
     )
   }
 
-  const application = await prisma.application.upsert({
-    where: { slug: appSlug },
-    update: {
-      name: appName,
-      status: 'active',
-    },
-    create: {
-      name: appName,
-      slug: appSlug,
-      status: 'active',
-    },
-  })
-
-  const clientSecretHash = await bcrypt.hash(clientSecret, 12)
   const rootPasswordHash = await bcrypt.hash(rootPassword, 12)
-
-  const authClient = await prisma.authClient.upsert({
-    where: { clientId },
-    update: {
-      name: clientName,
-      clientSecretHash,
-      status: 'active',
-    },
-    create: {
-      name: clientName,
-      clientId,
-      clientSecretHash,
-      status: 'active',
-    },
-  })
-
-  await prisma.clientApplicationAccess.upsert({
-    where: {
-      authClientId_applicationId: {
-        authClientId: authClient.id,
-        applicationId: application.id,
-      },
-    },
-    update: {},
-    create: {
-      authClientId: authClient.id,
-      applicationId: application.id,
-    },
-  })
 
   const rootUser = await prisma.user.upsert({
     where: { email: rootEmail },
@@ -103,8 +46,6 @@ async function main() {
   })
 
   console.log('Seed executed successfully')
-  console.log(`application.slug=${application.slug}`)
-  console.log(`client.id=${authClient.clientId}`)
   console.log(`root.email=${rootUser.email}`)
 }
 

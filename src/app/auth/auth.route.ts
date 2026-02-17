@@ -8,6 +8,7 @@ import { authResponseSchema } from '@/app/auth/schemas/auth-response.schema'
 import {
   clientApplicationHeadersSchema,
   clientAuthHeadersSchema,
+  optionalClientApplicationHeadersSchema,
 } from '@/app/auth/schemas/client-auth.schema'
 import { forgotPasswordSchema } from '@/app/auth/schemas/forgot-password.schema'
 import { logoutSchema } from '@/app/auth/schemas/logout.schema'
@@ -66,6 +67,10 @@ const mapError = (error: unknown) => {
     error instanceof Error ? error.message : 'Internal server error'
 
   if (message.includes('Invalid client credentials')) {
+    return { status: 401 as const, message }
+  }
+
+  if (message.includes('Client credentials are required')) {
     return { status: 401 as const, message }
   }
 
@@ -231,7 +236,7 @@ export async function authRoutes(app: FastifyTypeInstance) {
       schema: {
         tags: ['auth'],
         summary: 'Autenticar usuario',
-        headers: clientApplicationHeadersSchema,
+        headers: optionalClientApplicationHeadersSchema,
         body: authRequestSchema,
         response: {
           201: authResponseSchema,
@@ -241,9 +246,25 @@ export async function authRoutes(app: FastifyTypeInstance) {
     },
     async (request, reply) => {
       try {
-        const applicationSlug = await ensureClientAccessByApplicationSlug(
+        const parsedHeaders = optionalClientApplicationHeadersSchema.parse(
           request.headers,
         )
+        const hasAnyClientHeader =
+          parsedHeaders['x-client-id'] !== undefined ||
+          parsedHeaders['x-client-secret'] !== undefined ||
+          parsedHeaders['x-application-slug'] !== undefined
+        const hasAllClientHeaders =
+          parsedHeaders['x-client-id'] !== undefined &&
+          parsedHeaders['x-client-secret'] !== undefined &&
+          parsedHeaders['x-application-slug'] !== undefined
+
+        if (hasAnyClientHeader && !hasAllClientHeaders) {
+          throw new Error('Client credentials are required')
+        }
+
+        const applicationSlug = hasAllClientHeaders
+          ? await ensureClientAccessByApplicationSlug(request.headers)
+          : undefined
 
         const loginUser = new LoginUser(
           userRepository,

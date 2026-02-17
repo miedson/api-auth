@@ -32,6 +32,8 @@ Nos endpoints com escopo de aplicacao (`login`, `refresh-token`, `forgot-passwor
 
 - `x-application-slug`
 
+Excecao no `login`: usuario com role global `root` pode autenticar sem headers de client/aplicacao.
+
 ## Regras de administracao
 
 As rotas em `/api/v1/admin/*` exigem:
@@ -138,10 +140,12 @@ As migracoes rodam automaticamente na inicializacao do container da API.
 
 O seed cria:
 
-- `application` (sistema que usara login)
-- `auth_client` (cliente autorizado a chamar a API)
-- vinculo de acesso entre cliente e aplicacao
 - `user` root inicial da API Auth
+
+No primeiro login de `root` sem `x-application-slug`, a API cria automaticamente a aplicacao padrao usando:
+
+- `ROOT_DEFAULT_APPLICATION_SLUG` (padrao: `api-auth`)
+- `ROOT_DEFAULT_APPLICATION_NAME` (padrao: `API Auth`)
 
 Use as variaveis `SEED_*` do `.env.example`.
 O seed deve ser usado como bootstrap inicial; depois disso, prefira onboarding via rotas admin.

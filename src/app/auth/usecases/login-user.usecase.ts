@@ -19,14 +19,6 @@ export class LoginUser {
   ) {}
 
   async execute(input: AuthRequestDto): Promise<AuthResponseDto> {
-    const application = await this.applicationRepository.findBySlug(
-      input.applicationSlug,
-    )
-
-    if (!application || application.status !== 'active') {
-      throw new Error('Application unavailable')
-    }
-
     const user = await this.userRepository.findByEmail(input.email)
     const passwordValid = user
       ? await this.passwordHasher.compare(input.password, user.passwordHash)
@@ -38,6 +30,31 @@ export class LoginUser {
 
     if (!user.emailVerifiedAt) {
       throw new Error('Email not verified')
+    }
+
+    const applicationSlug =
+      input.applicationSlug ??
+      process.env.ROOT_DEFAULT_APPLICATION_SLUG ??
+      'api-auth'
+
+    if (!input.applicationSlug && user.role !== 'root') {
+      throw new Error('Client credentials are required')
+    }
+
+    const existingApplication = await this.applicationRepository.findBySlug(
+      applicationSlug,
+    )
+    const application =
+      existingApplication ??
+      (user.role === 'root' && !input.applicationSlug
+        ? await this.applicationRepository.create({
+            name: process.env.ROOT_DEFAULT_APPLICATION_NAME ?? 'API Auth',
+            slug: applicationSlug,
+          })
+        : null)
+
+    if (!application || application.status !== 'active') {
+      throw new Error('Application unavailable')
     }
 
     const membership = user.memberships.find(
