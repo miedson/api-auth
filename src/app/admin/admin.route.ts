@@ -5,20 +5,10 @@ import type { FastifyReply } from 'fastify'
 import type { FastifyTypeInstance } from '@/types'
 import { z } from 'zod'
 import { createApplicationResponseSchema, createApplicationSchema } from './schemas/create-application.schema'
-import {
-  createAuthClientResponseSchema,
-  createAuthClientSchema,
-} from './schemas/create-auth-client.schema'
-import {
-  bindUserToApplicationParamsSchema,
-  grantClientAccessParamsSchema,
-} from './schemas/grant-access.schema'
+import { bindUserToApplicationParamsSchema } from './schemas/grant-access.schema'
 import { CreateApplication } from './usecases/create-application.usecase'
-import { CreateAuthClient } from './usecases/create-auth-client.usecase'
-import { GrantClientApplicationAccess } from './usecases/grant-client-application-access.usecase'
 import { GrantUserApplicationAccess } from './usecases/grant-user-application-access.usecase'
 import { ApplicationRepository } from '../application/repositories/application.repository'
-import { AuthClientRepository } from '../client/repositories/auth-client.repository'
 import { UserRepository } from '../users/repositories/user.repository'
 
 type AdminErrorStatus = 401 | 403 | 404 | 409 | 422 | 500
@@ -34,7 +24,6 @@ const adminErrorResponses = {
 
 const userRepository = new UserRepository(prisma)
 const applicationRepository = new ApplicationRepository(prisma)
-const authClientRepository = new AuthClientRepository(prisma)
 const hasher = new BcryptPasswordHasher()
 
 const ensureRootUser = (
@@ -102,84 +91,19 @@ export async function adminRoutes(app: FastifyTypeInstance) {
           return
         }
 
-        const createApplication = new CreateApplication(applicationRepository)
+        const createApplication = new CreateApplication(
+          applicationRepository,
+          hasher,
+        )
         const created = await createApplication.execute(request.body)
 
         reply.code(201).send({
-          publicId: created.publicId,
-          name: created.name,
-          slug: created.slug,
-          status: created.status,
+          publicId: created.application.publicId,
+          name: created.application.name,
+          slug: created.application.slug,
+          secret: created.secret,
+          status: created.application.status,
         })
-      } catch (error) {
-        return sendAdminError(reply, error)
-      }
-    },
-  )
-
-  app.post(
-    '/clients',
-    {
-      schema: {
-        tags: ['admin'],
-        summary: 'Criar cliente de integracao',
-        body: createAuthClientSchema,
-        response: {
-          201: createAuthClientResponseSchema,
-          ...adminErrorResponses,
-        },
-      },
-    },
-    async (request, reply) => {
-      try {
-        if (
-          !ensureRootUser(reply, request.user.role)
-        ) {
-          return
-        }
-
-        const createAuthClient = new CreateAuthClient(authClientRepository, hasher)
-        const created = await createAuthClient.execute(request.body)
-
-        reply.code(201).send(created)
-      } catch (error) {
-        return sendAdminError(reply, error)
-      }
-    },
-  )
-
-  app.post(
-    '/clients/:clientId/applications/:applicationSlug',
-    {
-      schema: {
-        tags: ['admin'],
-        summary: 'Vincular cliente a aplicacao',
-        params: grantClientAccessParamsSchema,
-        response: {
-          204: z.undefined(),
-          ...adminErrorResponses,
-        },
-      },
-    },
-    async (request, reply) => {
-      try {
-        if (
-          !ensureRootUser(reply, request.user.role)
-        ) {
-          return
-        }
-
-        const grantClientAccess = new GrantClientApplicationAccess(
-          applicationRepository,
-          authClientRepository,
-        )
-
-        await grantClientAccess.execute({
-          clientId: request.params.clientId,
-          applicationSlug: request.params.applicationSlug,
-        })
-
-        reply.code(204).send()
       } catch (error) {
         return sendAdminError(reply, error)
       }

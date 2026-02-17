@@ -38,7 +38,7 @@ export class LoginUser {
       'api-auth'
 
     if (!input.applicationSlug && user.role !== 'root') {
-      throw new Error('Client credentials are required')
+      throw new Error('Application credentials are required')
     }
 
     const existingApplication = await this.applicationRepository.findBySlug(
@@ -50,6 +50,9 @@ export class LoginUser {
         ? await this.applicationRepository.create({
             name: process.env.ROOT_DEFAULT_APPLICATION_NAME ?? 'API Auth',
             slug: applicationSlug,
+            secretHash: await this.passwordHasher.hash(
+              randomBytes(32).toString('hex'),
+            ),
           })
         : null)
 

@@ -6,9 +6,8 @@ import { RefreshTokenRepository } from '@/app/auth/repositories/refresh-token.re
 import { authRequestSchema } from '@/app/auth/schemas/auth-request.schema'
 import { authResponseSchema } from '@/app/auth/schemas/auth-response.schema'
 import {
-  clientApplicationHeadersSchema,
-  clientAuthHeadersSchema,
-  optionalClientApplicationHeadersSchema,
+  applicationAuthHeadersSchema,
+  optionalApplicationAuthHeadersSchema,
 } from '@/app/auth/schemas/client-auth.schema'
 import { forgotPasswordSchema } from '@/app/auth/schemas/forgot-password.schema'
 import { logoutSchema } from '@/app/auth/schemas/logout.schema'
@@ -18,7 +17,6 @@ import { registerSchema } from '@/app/auth/schemas/register.schema'
 import { registerResponseSchema } from '@/app/auth/schemas/register-response.schema'
 import { resetPasswordSchema } from '@/app/auth/schemas/reset-password.schema'
 import { verifyEmailSchema } from '@/app/auth/schemas/verify-email.schema'
-import { EnsureClientApplicationAccess } from '@/app/auth/usecases/ensure-client-application-access.usecase'
 import { ForgotUserPassword } from '@/app/auth/usecases/forgot-user-password.usecase'
 import { GetMe } from '@/app/auth/usecases/get-me.usecase'
 import { LoginUser } from '@/app/auth/usecases/login-user.usecase'
@@ -29,7 +27,6 @@ import { ResetPassword } from '@/app/auth/usecases/reset-password.usecase'
 import { VerifyEmail } from '@/app/auth/usecases/verify-email.usecase'
 import { createMailSenderFromEnv } from '@/app/common/factories/mail-sender.factory'
 import { errorSchema } from '@/app/common/schemas/error.schema'
-import { AuthClientRepository } from '@/app/client/repositories/auth-client.repository'
 import { ApplicationRepository } from '@/app/application/repositories/application.repository'
 import { UserRepository } from '@/app/users/repositories/user.repository'
 import { prisma } from '@/lib/prisma'
@@ -39,15 +36,11 @@ import { z } from 'zod'
 
 const userRepository = new UserRepository(prisma)
 const applicationRepository = new ApplicationRepository(prisma)
-const authClientRepository = new AuthClientRepository(prisma)
 const passwordResetTokenRepository = new PasswordResetTokenRepository(prisma)
 const refreshTokenRepository = new RefreshTokenRepository(prisma)
 const hasher = new BcryptPasswordHasher()
 const tokenHasher = new Sha256TokenHasherAdapater()
 const mailSender = createMailSenderFromEnv()
-const ensureClientApplicationAccess = new EnsureClientApplicationAccess(
-  authClientRepository,
-)
 
 const isProd = process.env.NODE_ENV === 'production'
 type TransactionClient = Omit<
@@ -66,11 +59,11 @@ const mapError = (error: unknown) => {
   const message =
     error instanceof Error ? error.message : 'Internal server error'
 
-  if (message.includes('Invalid client credentials')) {
+  if (message.includes('Invalid application credentials')) {
     return { status: 401 as const, message }
   }
 
-  if (message.includes('Client credentials are required')) {
+  if (message.includes('Application credentials are required')) {
     return { status: 401 as const, message }
   }
 
@@ -116,10 +109,10 @@ const sendMappedError = (reply: FastifyReply, error: unknown) => {
   }
 }
 
-const ensureClientAccessByApplicationSlug = async (
+const ensureApplicationAccessByHeaders = async (
   headers: unknown,
 ) => {
-  const parsedHeaders = clientApplicationHeadersSchema.parse(headers)
+  const parsedHeaders = applicationAuthHeadersSchema.parse(headers)
   const application = await applicationRepository.findBySlug(
     parsedHeaders['x-application-slug'],
   )
@@ -128,22 +121,20 @@ const ensureClientAccessByApplicationSlug = async (
     throw new Error('Application unavailable')
   }
 
-  await ensureClientApplicationAccess.execute({
-    clientId: parsedHeaders['x-client-id'],
-    clientSecret: parsedHeaders['x-client-secret'],
-    application,
-  })
+  if (!application.secretHash) {
+    throw new Error('Invalid application credentials')
+  }
+
+  const validSecret = await hasher.compare(
+    parsedHeaders['x-application-secret'],
+    application.secretHash,
+  )
+
+  if (!validSecret) {
+    throw new Error('Invalid application credentials')
+  }
 
   return application.slug
-}
-
-const ensureClientCredentials = async (headers: unknown) => {
-  const parsedHeaders = clientAuthHeadersSchema.parse(headers)
-
-  await ensureClientApplicationAccess.execute({
-    clientId: parsedHeaders['x-client-id'],
-    clientSecret: parsedHeaders['x-client-secret'],
-  })
 }
 
 export async function authRoutes(app: FastifyTypeInstance) {
@@ -154,7 +145,7 @@ export async function authRoutes(app: FastifyTypeInstance) {
       schema: {
         tags: ['auth'],
         summary: 'Criar conta de usuario na API Auth',
-        headers: clientAuthHeadersSchema,
+        headers: applicationAuthHeadersSchema,
         body: registerSchema,
         response: {
           201: registerResponseSchema,
@@ -165,7 +156,7 @@ export async function authRoutes(app: FastifyTypeInstance) {
     },
     async (request, reply) => {
       try {
-        await ensureClientCredentials(request.headers)
+        await ensureApplicationAccessByHeaders(request.headers)
 
         const result = await prisma.$transaction(
           async (transaction: TransactionClient) => {
@@ -200,7 +191,7 @@ export async function authRoutes(app: FastifyTypeInstance) {
       schema: {
         tags: ['auth'],
         summary: 'Validar e-mail com codigo',
-        headers: clientAuthHeadersSchema,
+        headers: applicationAuthHeadersSchema,
         body: verifyEmailSchema,
         response: {
           204: z.undefined(),
@@ -210,7 +201,7 @@ export async function authRoutes(app: FastifyTypeInstance) {
     },
     async (request, reply) => {
       try {
-        await ensureClientCredentials(request.headers)
+        await ensureApplicationAccessByHeaders(request.headers)
 
         await prisma.$transaction(async (transaction: TransactionClient) => {
           const verifyEmail = new VerifyEmail(
@@ -236,7 +227,7 @@ export async function authRoutes(app: FastifyTypeInstance) {
       schema: {
         tags: ['auth'],
         summary: 'Autenticar usuario',
-        headers: optionalClientApplicationHeadersSchema,
+        headers: optionalApplicationAuthHeadersSchema,
         body: authRequestSchema,
         response: {
           201: authResponseSchema,
@@ -246,24 +237,22 @@ export async function authRoutes(app: FastifyTypeInstance) {
     },
     async (request, reply) => {
       try {
-        const parsedHeaders = optionalClientApplicationHeadersSchema.parse(
+        const parsedHeaders = optionalApplicationAuthHeadersSchema.parse(
           request.headers,
         )
-        const hasAnyClientHeader =
-          parsedHeaders['x-client-id'] !== undefined ||
-          parsedHeaders['x-client-secret'] !== undefined ||
+        const hasAnyApplicationHeader =
           parsedHeaders['x-application-slug'] !== undefined
-        const hasAllClientHeaders =
-          parsedHeaders['x-client-id'] !== undefined &&
-          parsedHeaders['x-client-secret'] !== undefined &&
+          || parsedHeaders['x-application-secret'] !== undefined
+        const hasAllApplicationHeaders =
           parsedHeaders['x-application-slug'] !== undefined
+          && parsedHeaders['x-application-secret'] !== undefined
 
-        if (hasAnyClientHeader && !hasAllClientHeaders) {
-          throw new Error('Client credentials are required')
+        if (hasAnyApplicationHeader && !hasAllApplicationHeaders) {
+          throw new Error('Application credentials are required')
         }
 
-        const applicationSlug = hasAllClientHeaders
-          ? await ensureClientAccessByApplicationSlug(request.headers)
+        const applicationSlug = hasAllApplicationHeaders
+          ? await ensureApplicationAccessByHeaders(request.headers)
           : undefined
 
         const loginUser = new LoginUser(
@@ -308,7 +297,7 @@ export async function authRoutes(app: FastifyTypeInstance) {
       schema: {
         tags: ['auth'],
         summary: 'Renovar sessao',
-        headers: clientApplicationHeadersSchema,
+        headers: applicationAuthHeadersSchema,
         body: refreshTokenSchema,
         response: {
           201: authResponseSchema,
@@ -318,7 +307,7 @@ export async function authRoutes(app: FastifyTypeInstance) {
     },
     async (request, reply) => {
       try {
-        const applicationSlug = await ensureClientAccessByApplicationSlug(
+        const applicationSlug = await ensureApplicationAccessByHeaders(
           request.headers,
         )
 
@@ -363,7 +352,7 @@ export async function authRoutes(app: FastifyTypeInstance) {
       schema: {
         tags: ['auth'],
         summary: 'Solicitar recuperacao de senha',
-        headers: clientApplicationHeadersSchema,
+        headers: applicationAuthHeadersSchema,
         body: forgotPasswordSchema,
         response: {
           204: z.undefined(),
@@ -373,7 +362,7 @@ export async function authRoutes(app: FastifyTypeInstance) {
     },
     async (request, reply) => {
       try {
-        const applicationSlug = await ensureClientAccessByApplicationSlug(
+        const applicationSlug = await ensureApplicationAccessByHeaders(
           request.headers,
         )
 
@@ -400,7 +389,7 @@ export async function authRoutes(app: FastifyTypeInstance) {
       schema: {
         tags: ['auth'],
         summary: 'Redefinir senha',
-        headers: clientApplicationHeadersSchema,
+        headers: applicationAuthHeadersSchema,
         body: resetPasswordSchema,
         response: {
           201: z.undefined(),
@@ -410,7 +399,7 @@ export async function authRoutes(app: FastifyTypeInstance) {
     },
     async (request, reply) => {
       try {
-        const applicationSlug = await ensureClientAccessByApplicationSlug(
+        const applicationSlug = await ensureApplicationAccessByHeaders(
           request.headers,
         )
 
@@ -440,7 +429,7 @@ export async function authRoutes(app: FastifyTypeInstance) {
       schema: {
         tags: ['auth'],
         summary: 'Encerrar sessao',
-        headers: clientApplicationHeadersSchema,
+        headers: applicationAuthHeadersSchema,
         body: logoutSchema,
         response: {
           204: z.undefined(),
@@ -450,7 +439,7 @@ export async function authRoutes(app: FastifyTypeInstance) {
     },
     async (request, reply) => {
       try {
-        const applicationSlug = await ensureClientAccessByApplicationSlug(
+        const applicationSlug = await ensureApplicationAccessByHeaders(
           request.headers,
         )
 

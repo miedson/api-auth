@@ -1,25 +1,19 @@
 import z from 'zod'
 import { applicationSlugSchema } from '@/app/application/schemas/application.schema'
 
-export const clientAuthHeadersSchema = z.object({
-  'x-client-id': z.string().min(6),
-  'x-client-secret': z.string().min(10),
-})
-
-export const clientApplicationHeadersSchema = clientAuthHeadersSchema.extend({
+export const applicationAuthHeadersSchema = z.object({
   'x-application-slug': applicationSlugSchema,
+  'x-application-secret': z.string().min(20),
 })
 
-export const optionalClientApplicationHeadersSchema = z.object({
-  'x-client-id': z.string().min(6).optional(),
-  'x-client-secret': z.string().min(10).optional(),
+export const optionalApplicationAuthHeadersSchema = z.object({
   'x-application-slug': applicationSlugSchema.optional(),
+  'x-application-secret': z.string().min(20).optional(),
 })
 
-export type ClientAuthHeadersDto = z.infer<typeof clientAuthHeadersSchema>
-export type ClientApplicationHeadersDto = z.infer<
-  typeof clientApplicationHeadersSchema
+export type ApplicationAuthHeadersDto = z.infer<
+  typeof applicationAuthHeadersSchema
 >
-export type OptionalClientApplicationHeadersDto = z.infer<
-  typeof optionalClientApplicationHeadersSchema
+export type OptionalApplicationAuthHeadersDto = z.infer<
+  typeof optionalApplicationAuthHeadersSchema
 >

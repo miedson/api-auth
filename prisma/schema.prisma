@@ -57,6 +57,7 @@ model Application {
   publicId               String                    @unique @default(uuid()) @map("public_id")
   name                   String
   slug                   String                    @unique
+  secretHash             String?                   @map("secret_hash")
   status                 ApplicationStatus         @default(active)
   createdAt              DateTime                  @default(now()) @map("created_at")
   updatedAt              DateTime                  @updatedAt @map("updated_at")

@@ -1,4 +1,6 @@
+import { randomBytes } from 'node:crypto'
 import type { CreateApplicationDto } from '@/app/admin/schemas/create-application.schema'
+import type { PasswordHasher } from '@/app/common/interfaces/password-hasher'
 import type { ApplicationRepository } from '@/app/application/repositories/application.repository'
 
 const slugify = (value: string) =>
@@ -10,7 +12,10 @@ const slugify = (value: string) =>
     .replace(/-+/g, '-')
 
 export class CreateApplication {
-  constructor(private readonly applicationRepository: ApplicationRepository) {}
+  constructor(
+    private readonly applicationRepository: ApplicationRepository,
+    private readonly passwordHasher: PasswordHasher,
+  ) {}
 
   async execute(input: CreateApplicationDto) {
     const slug = input.slug ?? slugify(input.name)
@@ -24,9 +29,18 @@ export class CreateApplication {
       throw new Error('Application slug already exists')
     }
 
-    return this.applicationRepository.create({
+    const secret = randomBytes(32).toString('hex')
+    const secretHash = await this.passwordHasher.hash(secret)
+
+    const application = await this.applicationRepository.create({
       name: input.name,
       slug,
+      secretHash,
     })
+
+    return {
+      application,
+      secret,
+    }
   }
 }

@@ -10,6 +10,7 @@ export const createApplicationResponseSchema = z.object({
   publicId: z.string(),
   name: z.string(),
   slug: z.string(),
+  secret: z.string(),
   status: z.enum(['active', 'suspended']),
 })
 

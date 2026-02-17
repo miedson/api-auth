@@ -11,12 +11,9 @@ Servico de identidade central em Fastify para autenticacao e autorizacao por apl
 - Recuperacao de senha com escopo por aplicacao (`POST /api/v1/forgot-password`, `POST /api/v1/reset-password`)
 - Encerramento de sessao (`POST /api/v1/logout`)
 - Identidade do usuario autenticado (`GET /api/v1/me`)
-- Controle de quais clientes podem consumir a API por `x-client-id` e `x-client-secret`
 - Controle de acesso do usuario por aplicacao
 - Onboarding administrativo por API:
   - `POST /api/v1/admin/applications`
-  - `POST /api/v1/admin/clients`
-  - `POST /api/v1/admin/clients/:clientId/applications/:applicationSlug`
   - `POST /api/v1/admin/applications/:applicationSlug/users/:userPublicId`
 
 No cadastro de novo usuario, a API envia um codigo para o e-mail informado e retorna `202` com status `verification_required`.
@@ -25,14 +22,12 @@ No cadastro de novo usuario, a API envia um codigo para o e-mail informado e ret
 
 Todos os endpoints publicos de autenticacao exigem headers:
 
-- `x-client-id`
-- `x-client-secret`
-
 Nos endpoints com escopo de aplicacao (`login`, `refresh-token`, `forgot-password`, `reset-password`, `logout`), tambem e obrigatorio:
 
 - `x-application-slug`
+- `x-application-secret`
 
-Excecao no `login`: usuario com role global `root` pode autenticar sem headers de client/aplicacao.
+Excecao no `login`: usuario com role global `root` pode autenticar sem headers de aplicacao.
 
 ## Regras de administracao
 
