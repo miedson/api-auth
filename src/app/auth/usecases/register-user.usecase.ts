@@ -33,8 +33,8 @@ export class RegisterUser {
     await this.mailSender.send({
       from: 'no-reply',
       to: [{ name: input.userName, email: input.userEmail }],
-      subject: 'Codigo de verificacao',
-      html: `<p>Seu codigo de verificacao e: <b>${code}</b></p>`,
+      subject: 'Código de verificação',
+      html: `<p>Seu código de verificação é: <b>${code}</b></p>`,
     })
   }
 
