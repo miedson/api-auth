@@ -7,6 +7,7 @@ import type { RefreshTokenRepository } from '@/app/auth/repositories/refresh-tok
 import type { AuthRequestDto } from '@/app/auth/schemas/auth-request.schema'
 import type { AuthResponseDto } from '@/app/auth/schemas/auth-response.schema'
 import type { UserRepository } from '@/app/users/repositories/user.repository'
+import { getJwtIssuer, getJwtKeyId } from '@/app/auth/services/jwt-keys.service'
 
 export class LoginUser {
   constructor(
@@ -77,8 +78,17 @@ export class LoginUser {
         name: user.name,
         applicationSlug: application.slug,
         role: user.role,
+        aud: application.slug,
+        iss: getJwtIssuer(),
       },
-      { expiresIn },
+      {
+        expiresIn,
+        algorithm: 'RS256',
+        header: {
+          alg: 'RS256',
+          kid: getJwtKeyId(),
+        },
+      },
     )
 
     const rawRefreshToken = randomBytes(48).toString('hex')

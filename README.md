@@ -52,6 +52,7 @@ As rotas em `/api/v1/admin/*` exigem:
 - Swagger + Scalar API Reference
 - Prisma + PostgreSQL (`@prisma/adapter-pg`)
 - JWT + Cookie
+- JWKS (`/.well-known/jwks.json`) para validação entre serviços
 - Bcrypt
 - MailerSend ou Brevo (configuravel via env)
 
@@ -82,6 +83,26 @@ pnpm prisma:migrate
 pnpm seed
 pnpm dev
 ```
+
+## JWT RS256 + JWKS
+
+O `api-auth` emite access tokens RS256 com `aud` da aplicação e `iss` configurável.
+
+Variáveis obrigatórias:
+
+- `JWT_PRIVATE_KEY`
+- `JWT_PUBLIC_KEY`
+- `JWT_KID` (opcional, default `api-auth-rs256-1`)
+- `JWT_ISSUER` (opcional; fallback para `AUTH_API_URL` ou host/porta)
+
+Gerar chaves para desenvolvimento:
+
+```bash
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out private.pem
+openssl rsa -pubout -in private.pem -out public.pem
+```
+
+Depois, copie os PEM para as variáveis (`\\n` escapado) e reinicie a API.
 
 ## Build
 

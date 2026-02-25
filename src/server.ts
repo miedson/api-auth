@@ -14,6 +14,11 @@ import {
 import { adminRoutes } from '@/app/admin/admin.route'
 import { authRoutes } from '@/app/auth/auth.route'
 import { validateAuthenticateDecorate } from '@/app/auth/decorates/validate-authenticate.decorate'
+import {
+  getJwksDocument,
+  getJwtPrivateKey,
+  getJwtPublicKey,
+} from '@/app/auth/services/jwt-keys.service'
 import { errorHandler } from '@/app/common/error-handler'
 
 const app = fastify({
@@ -73,7 +78,10 @@ app.register(fastifyCors, {
 })
 
 app.register(fjtw, {
-  secret: process.env.JWT_SECRET || 'default-jwt-secret',
+  secret: {
+    private: getJwtPrivateKey(),
+    public: getJwtPublicKey(),
+  },
 })
 
 app.addHook('preHandler', (req, _, next) => {
@@ -87,6 +95,16 @@ app.register(fCookie, {
 })
 
 app.addHook('preHandler', validateAuthenticateDecorate)
+
+app.get(
+  '/.well-known/jwks.json',
+  {
+    config: { public: true },
+  },
+  async (_, reply) => {
+    reply.code(200).send(getJwksDocument())
+  },
+)
 
 if (enableDocs) {
   app.register(fastifySwagger, {
