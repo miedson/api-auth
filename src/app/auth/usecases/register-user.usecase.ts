@@ -63,6 +63,7 @@ export class RegisterUser {
       return {
         status: 'verification_required',
         message: 'Verification code sent to email',
+        userPublicId: created.publicId,
       }
     }
 
@@ -97,12 +98,14 @@ export class RegisterUser {
       return {
         status: 'verification_required',
         message: 'Verification code sent to email',
+        userPublicId: existingUser.publicId,
       }
     }
 
     return {
       status: 'created',
       message: 'Account created successfully',
+      userPublicId: existingUser.publicId,
     }
   }
 }

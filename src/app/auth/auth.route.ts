@@ -25,6 +25,11 @@ import { RefreshSession } from '@/app/auth/usecases/refresh-session.usecase'
 import { RegisterUser } from '@/app/auth/usecases/register-user.usecase'
 import { ResetPassword } from '@/app/auth/usecases/reset-password.usecase'
 import { VerifyEmail } from '@/app/auth/usecases/verify-email.usecase'
+import { GrantUserApplicationAccess } from '@/app/admin/usecases/grant-user-application-access.usecase'
+import {
+  bindUserToApplicationBodySchema,
+  bindUserToApplicationParamsSchema,
+} from '@/app/admin/schemas/grant-access.schema'
 import { createMailSenderFromEnv } from '@/app/common/factories/mail-sender.factory'
 import { errorSchema } from '@/app/common/schemas/error.schema'
 import { ApplicationRepository } from '@/app/application/repositories/application.repository'
@@ -138,6 +143,46 @@ const ensureApplicationAccessByHeaders = async (
 }
 
 export async function authRoutes(app: FastifyTypeInstance) {
+  app.post(
+    '/applications/:applicationSlug/users/:userPublicId',
+    {
+      config: { public: true },
+      schema: {
+        tags: ['auth'],
+        summary: 'Associar usuario a aplicacao via credenciais da aplicacao',
+        headers: applicationAuthHeadersSchema,
+        params: bindUserToApplicationParamsSchema,
+        body: bindUserToApplicationBodySchema,
+        response: {
+          204: z.undefined(),
+          ...commonErrorResponses,
+        },
+      },
+    },
+    async (request, reply) => {
+      try {
+        const applicationSlug = await ensureApplicationAccessByHeaders(
+          request.headers,
+        )
+
+        const grantUserAccess = new GrantUserApplicationAccess(
+          applicationRepository,
+          userRepository,
+        )
+
+        await grantUserAccess.execute({
+          userPublicId: request.params.userPublicId,
+          applicationSlug,
+          role: request.body.role ?? 'user',
+        })
+
+        reply.code(204).send()
+      } catch (error) {
+        return sendMappedError(reply, error)
+      }
+    },
+  )
+
   app.post(
     '/register',
     {
